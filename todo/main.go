@@ -55,7 +55,13 @@ const (
 //						   use it.  See github.com/spf13/cobra for information
 //						   on how to use it.
 //
-//	 YOUR ANSWER: <GOES HERE>
+//	 YOUR ANSWER: Process command line arguments and
+//                    returns the type of operation that was requested to be
+//		      performed on the database.  Potential operations include:
+//		      list, query, add, update, delete, or itemStatus.  Each option
+//                    contains a specified name, default value, and a string documenting its
+//                    usage.  If no option is specified or an invalid option is specified then
+//                    and error is returned. 
 func processCmdLineFlags() (AppOptType, error) {
 	flag.StringVar(&dbFileNameFlag, "db", "./data/todo.json", "Name of the database file")
 
