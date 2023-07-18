@@ -27,7 +27,13 @@ type DbMap map[int]ToDoItem
 //	   	 (they are lowercase).  Describe why you think this is
 //		 a good design decision.
 //
-// ANSWER: <GOES HERE>
+// ANSWER: When building a module, it's generally good practice to not expose the internal details of
+//         data/code to the user of the module if it is not necessary for the user to interact with them.
+//         The public data/functions are what users of the module should be programming against, and keeping
+//         the internal details hidden has several advantages:
+//           - It's easier to read and understand the API since the users don't need to read and understand the underlying details, just the interface
+// 	     - Since no user is going to be using the internals, we are free to change them around with the guarantee that all other code will continue to work assuming the interface behaves the same
+//           - It's much easier to reason about the internal details if the internal deatils are only modified within this module.  If they are changed everywhere else throughout the codebase it becomes difficult to track everything
 type ToDo struct {
 	toDoMap    DbMap
 	dbFileName string
