@@ -93,8 +93,17 @@ func (t *ToDo) AddItem(item ToDoItem) error {
 	//If everything there are no errors, this function should return nil
 	//at the end to indicate that the item was properly added to the
 	//database.
+	err := t.loadDB()
+	if err != nil {
+		return err
+	}
 
-	return errors.New("AddItem() is currently not implemented")
+	if _, ok := t.toDoMap[item.Id]; ok {
+		return errors.New("Todo item already exists!")
+	}
+
+	t.toDoMap[item.Id] = item
+	return t.saveDB()
 }
 
 // DeleteItem accepts an item id and removes it from the DB.
@@ -122,8 +131,18 @@ func (t *ToDo) DeleteItem(id int) error {
 	//appropriate.  If everything there are no errors, this function should
 	//return nil at the end to indicate that the item was properly deleted
 	//from the database.
+	err := t.loadDB()
+	if err != nil {
+		return err
+	}
 
-	return errors.New("DeleteItem() is currently not implemented")
+	if _, ok := t.toDoMap[id]; !ok {
+		return errors.New("Cannot delete an entry from the database that does not exist!")
+	}
+
+	delete(t.toDoMap, id)
+
+	return t.saveDB()
 }
 
 // UpdateItem accepts a ToDoItem and updates it in the DB.
@@ -151,8 +170,18 @@ func (t *ToDo) UpdateItem(item ToDoItem) error {
 	//any errors, return them, as appropriate.  If everything there are
 	//no errors, this function should return nil at the end to indicate
 	//that the item was properly updated in the database.
+	err := t.loadDB()
+	if err != nil {
+		return err
+	}
 
-	return errors.New("UpdateItem() is currently not implemented")
+	if _, ok := t.toDoMap[item.Id]; !ok {
+		return errors.New("Cannot update an entry from the database that does not exist!")
+	}
+
+	t.toDoMap[item.Id] = item
+
+	return t.saveDB()
 }
 
 // GetItem accepts an item id and returns the item from the DB.
@@ -181,8 +210,16 @@ func (t *ToDo) GetItem(id int) (ToDoItem, error) {
 	//no errors, this function should return the item requested and nil
 	//as the error value the end to indicate that the item was
 	//properly returned from the database.
+	err := t.loadDB()
+	if err != nil {
+		return ToDoItem{}, err
+	}
 
-	return ToDoItem{}, errors.New("GetItem() is currently not implemented")
+	if item, ok := t.toDoMap[id]; ok {
+		return item, nil
+	}
+
+	return ToDoItem{}, errors.New("Cannot update an entry from the database that does not exist!")
 }
 
 // GetAllItems returns all items from the DB.  If successful it
@@ -206,8 +243,17 @@ func (t *ToDo) GetAllItems() ([]ToDoItem, error) {
 	//use the built in append() function in go to add an item in a slice.
 	//Finally, if there were no errors along the way, return the slice
 	//and nil as the error value.
+	err := t.loadDB()
+	if err != nil {
+		return []ToDoItem{}, nil;
+	}
 
-	return nil, errors.New("GetAllItems() is currently not implemented")
+	var toDoList []ToDoItem;
+	for _, v := range t.toDoMap {
+		toDoList = append(toDoList, v)
+	}
+
+	return toDoList, nil;
 }
 
 // PrintItem accepts a ToDoItem and prints it to the console
