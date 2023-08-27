@@ -1,0 +1,6 @@
+flushdb
+json.set todo:1 $ '{"id":1,"FirstName": "John","LastName": "Doe"}'
+json.set todo:2 $ '{"id":2,"FirstName": "John","LastName": "Doe"}'
+json.set todo:3 $ '{"id":3,"FirstName": "John","LastName": "Doe"}'
+json.set todo:4 $ '{"id":4,"FirstName": "John","LastName": "Doe"}'
+json.set todo:5 $ '{"id":5,"FirstName": "John","LastName": "Doe"}'
