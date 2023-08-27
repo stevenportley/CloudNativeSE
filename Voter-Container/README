@@ -1,0 +1,2 @@
+Run `docker-compose up` to start both the redis instance and the VoterAPI
+The script `load-data.sh` has been provided for convenience to populate the API with some example datat
