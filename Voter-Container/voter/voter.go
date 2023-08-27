@@ -107,7 +107,6 @@ func (t *VoterDb) getItemFromRedis(key string, item *Voter) error {
 	//json structure
 	itemObject, err := t.jsonHelper.JSONGet(key, ".")
 	if err != nil {
-		log.Println("Failed to get JSON key object...")
 		return err
 	}
 
@@ -117,7 +116,6 @@ func (t *VoterDb) getItemFromRedis(key string, item *Voter) error {
 	//it into our ToDoItem struct
 	err = json.Unmarshal(itemObject.([]byte), item)
 	if err != nil {
-		log.Println("Failed to un-marshal voter object...")
 		return err
 	}
 
@@ -126,13 +124,10 @@ func (t *VoterDb) getItemFromRedis(key string, item *Voter) error {
 
 func (t *VoterDb) AddVoter(voter Voter) error {
 
-	log.Println("Adding voter...")
-
 	//Before we add an item to the DB, lets make sure
 	//it does not exist, if it does, return an error
 	redisKey := redisKeyFromId(int(voter.VoterID))
 	var existingItem Voter
-	log.Println("Redis key...", redisKey)
 	if err := t.getItemFromRedis(redisKey, &existingItem); err == nil {
 		return errors.New("voter already exists")
 	}

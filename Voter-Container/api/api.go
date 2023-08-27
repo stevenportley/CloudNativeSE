@@ -99,11 +99,6 @@ func (v *VoterApi) PostVoterApi(c *gin.Context) {
 		return
 	}
 
-	log.Println("Adding voter...")
-	log.Println("ID: ", voter.VoterID)
-	log.Println("FirstName ", voter.FirstName)
-	log.Println("LastName ", voter.LastName)
-
 	id := c.Param("id")
 	id64, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {

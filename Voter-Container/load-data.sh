@@ -9,3 +9,5 @@ curl -d '{ "FirstName": "QRST", "LastName": "Portley", "VoteHistory" : [] }' -H 
 
 
 curl -d '{}' -H "Content-Type: application/json" -X POST http://localhost:1080/voters/11/polls/1
+curl -d '{}' -H "Content-Type: application/json" -X POST http://localhost:1080/voters/11/polls/2
+curl -d '{}' -H "Content-Type: application/json" -X POST http://localhost:1080/voters/6/polls/1
