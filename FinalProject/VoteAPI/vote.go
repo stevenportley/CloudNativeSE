@@ -1,4 +1,4 @@
-package vote
+package main
 
 import (
 	"context"
@@ -15,40 +15,54 @@ const (
 	RedisNilError        = "redis: nil"
 	RedisDefaultLocation = "0.0.0.0:6379"
 	RedisKeyPrefix       = "vote:"
+	RedisIDKey           = "voteCnt:"
 )
 
 type Vote struct {
-	VoteID    uint
-	VoterID   uint
-	PollID    uint
-	VoteValue uint
+	VoteID    uint `json:"voteID"`
+	VoterID   uint `json:"voterID"`
+	PollID    uint `json:"pollID"`
+	VoteValue uint `json:"voteValue"`
 }
 
-type VoteDb struct {
+type VoteApi struct {
 	cacheClient *redis.Client
 	jsonHelper  *rejson.Handler
 	context     context.Context
+	idCnter     uint
 }
 
-func NewVote(voteid uint, voterid uint, pollid uint, value uint) *Vote {
-	return &Vote{
-		VoteID:    voteid,
-		VoterID:   voterid,
-		PollID:    pollid,
-		VoteValue: value,
-	}
-}
-
-func NewDb() (*VoteDb, error) {
+func NewVoteApi() (*VoteApi, error) {
 	redisUrl := os.Getenv("REDIS_URL")
 	if redisUrl == "" {
 		redisUrl = RedisDefaultLocation
 	}
 
-	return NewDbWithInstance(redisUrl)
+	api, err := NewDbWithInstance(redisUrl)
+	if err != nil {
+		return &VoteApi{}, err
+	}
+
+	itemObject, err := api.jsonHelper.JSONGet(RedisIDKey, ".")
+	if err != nil {
+		// There's no entry for the current number of voter,
+		// assume 0
+		return api, nil
+	}
+
+	//JSONGet returns an "any" object, or empty interface,
+	//we need to convert it to a byte array, which is the
+	//underlying type of the object, then we can unmarshal
+	//it into our ToDoItem struct
+	err = json.Unmarshal(itemObject.([]byte), &api.idCnter)
+	if err != nil {
+		return &VoteApi{}, err
+	}
+
+	return api, nil
 }
 
-func NewDbWithInstance(location string) (*VoteDb, error) {
+func NewDbWithInstance(location string) (*VoteApi, error) {
 
 	client := redis.NewClient(&redis.Options{
 		Addr: location,
@@ -66,7 +80,7 @@ func NewDbWithInstance(location string) (*VoteDb, error) {
 	jsonHelper.SetGoRedisClientWithContext(ctx, client)
 
 	//Return a pointer to a new ToDo struct
-	return &VoteDb{
+	return &VoteApi{
 			cacheClient: client,
 			jsonHelper:  jsonHelper,
 			context:     ctx,
@@ -81,7 +95,7 @@ func redisKeyFromId(id int) string {
 	return fmt.Sprintf("%s%d", RedisKeyPrefix, id)
 }
 
-func (t *VoteDb) getVoteFromRedis(key string, vote *Vote) error {
+func (t *VoteApi) getVoteFromRedis(key string, vote *Vote) error {
 
 	//Lets query redis for the item, note we can return parts of the
 	//json structure, the second parameter "." means return the entire
@@ -103,32 +117,49 @@ func (t *VoteDb) getVoteFromRedis(key string, vote *Vote) error {
 	return nil
 }
 
-func (t *VoteDb) AddVote(vote Vote) error {
+func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) {
+
+	//TODO: Make sure voter and poll exist!
+	//TODO: Update vote history for voter
+	//TODO: Update tally vote poll
 
 	//Before we add an item to the DB, lets make sure
 	//it does not exist, if it does, return an error
-	redisKey := redisKeyFromId(int(vote.VoteID))
+	redisKey := redisKeyFromId(int(t.idCnter + 1))
 	var existingItem Vote
 	if err := t.getVoteFromRedis(redisKey, &existingItem); err == nil {
-		return errors.New("Vote already exists!")
+		return &Vote{}, errors.New("Vote already exists!")
+	}
+
+	newVote := Vote{
+		VoteID:    t.idCnter + 1,
+		VoterID:   voterID,
+		PollID:    pollID,
+		VoteValue: value,
 	}
 
 	//Add item to database with JSON Set
-	if _, err := t.jsonHelper.JSONSet(redisKey, ".", vote); err != nil {
-		return err
+	if _, err := t.jsonHelper.JSONSet(redisKey, ".", newVote); err != nil {
+		return &Vote{}, err
+	}
+
+	t.idCnter += 1
+
+	if _, err := t.jsonHelper.JSONSet(RedisIDKey, ".", t.idCnter); err != nil {
+		return &Vote{}, err
 	}
 
 	//If everything is ok, return nil for the error
-	return nil
+	return &newVote, nil
 }
 
-func (t *VoteDb) GetVote(id int) (Vote, error) {
+func (t *VoteApi) GetVote(voteID int) (Vote, error) {
 
 	// Check if item exists before trying to get it
 	// this is a good practice, return an error if the
 	// item does not exist
 	var vote Vote
-	pattern := redisKeyFromId(id)
+	pattern := redisKeyFromId(voteID)
 	err := t.getVoteFromRedis(pattern, &vote)
 	if err != nil {
 		return Vote{}, err
@@ -137,42 +168,22 @@ func (t *VoteDb) GetVote(id int) (Vote, error) {
 	return vote, nil
 }
 
-func (t *VoteDb) UpdateVote(vote Vote) error {
-
-	//Before we add an item to the DB, lets make sure
-	//it does not exist, if it does, return an error
-	redisKey := redisKeyFromId(int(vote.VoteID))
-	var existingVote Vote
-	if err := t.getVoteFromRedis(redisKey, &existingVote); err != nil {
-		return errors.New("vote does not exist")
-	}
-
-	//Add item to database with JSON Set.  Note there is no update
-	//functionality, so we just overwrite the existing item
-	if _, err := t.jsonHelper.JSONSet(redisKey, ".", vote); err != nil {
-		return err
-	}
-
-	//If everything is ok, return nil for the error
-	return nil
-}
-
-func (t *VoteDb) GetAllVotes() ([]Vote, error) {
+func (t *VoteApi) GetAllVotes() ([]Vote, error) {
 
 	//Now that we have the DB loaded, lets crate a slice
-	var voterList []Vote
-	var vtr Vote
+	var voteList []Vote
+	var vt Vote
 
 	//Lets query redis for all of the items
 	pattern := RedisKeyPrefix + "*"
 	ks, _ := t.cacheClient.Keys(t.context, pattern).Result()
 	for _, key := range ks {
-		err := t.getVoteFromRedis(key, &vtr)
+		err := t.getVoteFromRedis(key, &vt)
 		if err != nil {
 			return nil, err
 		}
-		voterList = append(voterList, vtr)
+		voteList = append(voteList, vt)
 	}
 
-	return voterList, nil
+	return voteList, nil
 }

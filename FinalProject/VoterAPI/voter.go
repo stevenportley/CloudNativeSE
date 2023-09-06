@@ -32,16 +32,6 @@ type VoterAPI struct {
 	idCnter     uint
 }
 
-// constructor for VoterList struct
-func NewVoter(id uint, fn, ln string) *Voter {
-	return &Voter{
-		VoterID:     id,
-		FirstName:   fn,
-		LastName:    ln,
-		VoteHistory: []uint{},
-	}
-}
-
 func NewVoterApi() (*VoterAPI, error) {
 	redisUrl := os.Getenv("REDIS_URL")
 	if redisUrl == "" {
