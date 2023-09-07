@@ -23,8 +23,8 @@ services:
         condition: service_started
     environment:
       - REDIS_URL=cache:6379
-      - VOTER_URL=http://localhost:2080
-      - POLL_URL=http://localhost:3080
+      - VOTER_URL=http://voter-api:2080
+      - POLL_URL=http://poll-api:3080
     networks:
       - frontend
       - backend

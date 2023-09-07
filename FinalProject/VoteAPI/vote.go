@@ -171,10 +171,11 @@ func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) 
 		return &Vote{}, errors.New("The poll you are trying to vote in does not exist!!")
 	}
 
-	voterNewPollUrl := fmt.Sprintf(voterUrl, "/", pollID)
+	voterNewPollUrl := fmt.Sprint(voterUrl, "/", pollID)
 	resp, err = t.apiClient.R().SetHeader("Content-Type", "application/json").Post(voterNewPollUrl)
 	if err != nil {
-		return &Vote{}, errors.New("Could not connect to voter-api to post new poll history")
+		log.Println("Could not connect to voter-api to post new poll history.  url: ", voterNewPollUrl, " err: ", err)
+		return &Vote{}, err
 	}
 
 	newVote := Vote{
