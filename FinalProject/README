@@ -1,0 +1,21 @@
+Each of the APIs for this assignment have their own corresponding sub-folder: VoterAPI, VoteAPI, and PollAPI
+Each API contains a script for building the docker container: builddocker.sh
+Each API also contains a script for populating the API with example data: ./load-example-*.sh
+
+To run the system: 
+- For each API, cd into its directory and run `./builddocker.sh`
+- Bring up the system, from the root directory by running `docker compose up`
+- Populate the API by running the `./load-example-*.sh` in each of the directories
+	- The Voter and Poll data needs to be loaded before the Votes, because the VoteAPI verifies that the Poll and Voter exist
+	- You can also try loading the Votes API first to verify that the API correctly rejects votes without a corresponding voter/poll
+
+- Verify the data using a browser:
+	- Vote data is on http://localhost:1080/vote
+	- Voter data is on http://localhost:2080/voter
+	- Poll data is on http://localhost:3080/poll
+
+
+- The /vote endpoint is the primary entry point into the system.  It contains all of the votes, and you can access the hyperlink to the corresponding poll/voter using /vote/<vote num>
+- Populating a new vote POSTs to /voter/<voter id>/<poll id>, which updates the voters vote history
+- Posting to /vote, /voter, and /poll requires the same JSON items as previous assignment, not including their IDs.  The system maintains a counter and allocates IDs to new entries as they are added
+- Voter and Poll data can be accessed through /voter/<voter id> and /poll/<poll id> or through the /vote/<vote id> hyperlinks
