@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 var (
@@ -55,7 +56,7 @@ func main() {
 	r.POST("/vote", func(c *gin.Context) {
 
 		type Vote struct {
-			VoterID   uint `json:"voteID"`
+			VoterID   uint `json:"voterID"`
 			PollID    uint `json:"pollID"`
 			VoteValue uint `json:"voteValue"`
 		}
@@ -75,6 +76,25 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, newVote)
+	})
+
+	r.GET("/vote/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		id64, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			log.Println("Error converting id to int64: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		vt, err := api.GetVote(int(id64))
+		if err != nil {
+			log.Println("Failed to fetch a vote from the DB!")
+			c.AbortWithStatus(http.StatusNotFound)
+		} else {
+			c.JSON(http.StatusOK, vt)
+		}
+
 	})
 
 	// Hardcoded health status

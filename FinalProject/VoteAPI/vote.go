@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/go-resty/resty/v2"
 	"github.com/nitishm/go-rejson/v4"
 	"log"
 	"os"
@@ -29,10 +30,13 @@ type VoteApi struct {
 	cacheClient *redis.Client
 	jsonHelper  *rejson.Handler
 	context     context.Context
+	apiClient   *resty.Client
+	voterUrl    string
+	pollUrl     string
 	idCnter     uint
 }
 
-func NewVoteApi() (*VoteApi, error) {
+func NewVoteApi(voterUrl string, pollUrl string) (*VoteApi, error) {
 	redisUrl := os.Getenv("REDIS_URL")
 	if redisUrl == "" {
 		redisUrl = RedisDefaultLocation
@@ -42,6 +46,10 @@ func NewVoteApi() (*VoteApi, error) {
 	if err != nil {
 		return &VoteApi{}, err
 	}
+
+	api.apiClient = resty.New()
+	api.voterUrl = voterUrl
+	api.pollUrl = pollUrl
 
 	itemObject, err := api.jsonHelper.JSONGet(RedisIDKey, ".")
 	if err != nil {
@@ -129,6 +137,28 @@ func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) 
 	var existingItem Vote
 	if err := t.getVoteFromRedis(redisKey, &existingItem); err == nil {
 		return &Vote{}, errors.New("Vote already exists!")
+	}
+
+	// Make sure that the voter exists
+	resp, err := t.apiClient.R().Get(t.voterUrl + string(voterID))
+	if err != nil {
+		log.Println("Error when trying to reach voter api")
+		return &Vote{}, err
+	}
+
+	if resp.StatusCode() == 404 {
+		return &Vote{}, errors.New("The voter submitting a vote does not exist!!")
+	}
+
+	// Make sure that the poll exists
+	resp, err = t.apiClient.R().Get(t.pollUrl + string(pollID))
+	if err != nil {
+		log.Println("Error when trying to reach poll api")
+		return &Vote{}, err
+	}
+
+	if resp.StatusCode() == 404 {
+		return &Vote{}, errors.New("The poll you are trying to vote in does not exist!!")
 	}
 
 	newVote := Vote{
