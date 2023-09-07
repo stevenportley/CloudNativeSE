@@ -9,6 +9,7 @@ import (
 	"github.com/nitishm/go-rejson/v4"
 	"log"
 	"os"
+	"time"
 )
 
 const (
@@ -18,11 +19,16 @@ const (
 	RedisIDKey           = "voterCnt:"
 )
 
+type voterPoll struct {
+	PollID   uint      `json:"PollID"`
+	VoteDate time.Time `json:"VoteData"`
+}
+
 type Voter struct {
-	VoterID     uint   `json:"id"`
-	FirstName   string `json:"FirstName"`
-	LastName    string `json:"LastName"`
-	VoteHistory []uint `json:"pollid"`
+	VoterID     uint        `json:"id"`
+	FirstName   string      `json:"FirstName"`
+	LastName    string      `json:"LastName"`
+	VoteHistory []voterPoll `json:"VoteHistory"`
 }
 
 type VoterAPI struct {
@@ -135,7 +141,7 @@ func (t *VoterAPI) AddVoter(fn string, ln string) (*Voter, error) {
 		VoterID:     t.idCnter + 1,
 		FirstName:   fn,
 		LastName:    ln,
-		VoteHistory: []uint{},
+		VoteHistory: []voterPoll{},
 	}
 
 	//Add item to database with JSON Set
@@ -154,7 +160,7 @@ func (t *VoterAPI) AddVoter(fn string, ln string) (*Voter, error) {
 	return &newVoter, nil
 }
 
-func (t *VoterAPI) GetVoter(id int) (Voter, error) {
+func (t *VoterAPI) GetVoter(id int) (*Voter, error) {
 
 	// Check if item exists before trying to get it
 	// this is a good practice, return an error if the
@@ -163,10 +169,30 @@ func (t *VoterAPI) GetVoter(id int) (Voter, error) {
 	pattern := redisKeyFromId(id)
 	err := t.getVoterFromRedis(pattern, &voter)
 	if err != nil {
-		return Voter{}, err
+		return &Voter{}, err
 	}
 
-	return voter, nil
+	return &voter, nil
+}
+
+func (t *VoterAPI) UpdateVoter(voter Voter) error {
+
+	//Before we add an item to the DB, lets make sure
+	//it does not exist, if it does, return an error
+	redisKey := redisKeyFromId(int(voter.VoterID))
+	var existingVoter Voter
+	if err := t.getVoterFromRedis(redisKey, &existingVoter); err != nil {
+		return errors.New("voter does not exist")
+	}
+
+	//Add item to database with JSON Set.  Note there is no update
+	//functionality, so we just overwrite the existing item
+	if _, err := t.jsonHelper.JSONSet(redisKey, ".", voter); err != nil {
+		return err
+	}
+
+	//If everything is ok, return nil for the error
+	return nil
 }
 
 func (t *VoterAPI) GetAllVoters() ([]Voter, error) {
@@ -187,4 +213,20 @@ func (t *VoterAPI) GetAllVoters() ([]Voter, error) {
 	}
 
 	return voterList, nil
+}
+
+func (t *VoterAPI) Vote(id int, pollid uint) error {
+
+	voter, err := t.GetVoter(id)
+	if err != nil {
+		return err
+	}
+
+	voter.VoteHistory = append(voter.VoteHistory, voterPoll{pollid, time.Now()})
+
+	err = t.UpdateVoter(*voter)
+	if err != nil {
+		return err
+	}
+	return nil
 }

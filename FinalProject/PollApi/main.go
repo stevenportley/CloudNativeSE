@@ -25,7 +25,7 @@ func processCmdLineFlags() {
 	//We set this up as a flag so that we can overwrite it on the command line if
 	//needed
 	flag.StringVar(&hostFlag, "h", "0.0.0.0", "Listen on all interfaces")
-	flag.UintVar(&portFlag, "p", 1080, "Default Port")
+	flag.UintVar(&portFlag, "p", 3080, "Default Port")
 
 	flag.Parse()
 }
@@ -78,7 +78,7 @@ func main() {
 		c.JSON(http.StatusOK, newPoll)
 	})
 
-	r.GET("/poll:id", func(c *gin.Context) {
+	r.GET("/poll/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		id64, err := strconv.ParseUint(id, 10, 32)
 		if err != nil {
@@ -97,7 +97,7 @@ func main() {
 	})
 
 	// Hardcoded health status
-	r.GET("/vote/health", func(c *gin.Context) {
+	r.GET("/poll/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":             "ok",
 			"version":            "1.0.0",

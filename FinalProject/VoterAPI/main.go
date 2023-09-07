@@ -25,7 +25,7 @@ func processCmdLineFlags() {
 	//We set this up as a flag so that we can overwrite it on the command line if
 	//needed
 	flag.StringVar(&hostFlag, "h", "0.0.0.0", "Listen on all interfaces")
-	flag.UintVar(&portFlag, "p", 1080, "Default Port")
+	flag.UintVar(&portFlag, "p", 2080, "Default Port")
 
 	flag.Parse()
 }
@@ -92,9 +92,33 @@ func main() {
 			log.Println("Failed to fetch a voter from the DB!")
 			c.AbortWithStatus(http.StatusNotFound)
 		} else {
-			c.JSON(http.StatusOK, vtr)
+			c.JSON(http.StatusOK, *vtr)
+		}
+	})
+
+	r.POST("/voter/:id/:pollid", func(c *gin.Context) {
+		id := c.Param("id")
+		id64, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			log.Println("Error converting id to int64: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
 		}
 
+		pid := c.Param("pollid")
+		pid64, err := strconv.ParseUint(pid, 10, 32)
+		if err != nil {
+			log.Println("Error converting id to int64: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		err = api.Vote(int(id64), uint(pid64))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+		}
+
+		c.JSON(http.StatusOK, gin.H{})
 	})
 
 	// Hardcoded health status

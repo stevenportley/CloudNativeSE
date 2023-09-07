@@ -71,7 +71,8 @@ func main() {
 
 		newVote, err := api.AddVote(vote.VoterID, vote.PollID, vote.VoterID)
 		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
+			log.Println("Failed to vote: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
 
@@ -95,6 +96,44 @@ func main() {
 			c.JSON(http.StatusOK, vt)
 		}
 
+	})
+
+	r.GET("/vote/:id/voter", func(c *gin.Context) {
+		id := c.Param("id")
+		id64, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			log.Println("Error converting id to int64: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		vt, err := api.GetVote(int(id64))
+		if err != nil {
+			log.Println("Failed to fetch a vote from the DB!")
+			c.AbortWithStatus(http.StatusNotFound)
+		}
+
+		url := fmt.Sprint(api.VoterUrl, "/voter/", vt.VoterID)
+		c.Redirect(http.StatusFound, url)
+	})
+
+	r.GET("/vote/:id/poll", func(c *gin.Context) {
+		id := c.Param("id")
+		id64, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			log.Println("Error converting id to int64: ", err)
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		vt, err := api.GetVote(int(id64))
+		if err != nil {
+			log.Println("Failed to fetch a vote from the DB!")
+			c.AbortWithStatus(http.StatusNotFound)
+		}
+
+		url := fmt.Sprint(api.PollUrl, "/poll/", vt.PollID)
+		c.Redirect(http.StatusFound, url)
 	})
 
 	// Hardcoded health status

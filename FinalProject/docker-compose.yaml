@@ -1,0 +1,66 @@
+version: '3.8'
+services:
+  cache:
+    image: redis/redis-stack:latest
+    container_name: pub-cache
+    restart: on-failure
+    ports:
+      - '6379:6379'
+      - '8001:8001'
+    environment:
+      - REDIS_ARGS=--appendonly yes
+    networks:
+      - backend
+    
+  vote-api:
+    image: finalproject/vote-api:v1
+    container_name: vote-api
+    restart: always
+    ports:
+      - '1080:1080'
+    depends_on:
+      cache:
+        condition: service_started
+    environment:
+      - REDIS_URL=cache:6379
+      - VOTER_URL=http://localhost:2080
+      - POLL_URL=http://localhost:3080
+    networks:
+      - frontend
+      - backend
+
+  voter-api:
+    image: finalproject/voter-api:v1
+    container_name: voter-api
+    restart: always
+    ports:
+      - '2080:2080'
+    depends_on:
+      cache:
+        condition: service_started
+    environment:
+      - REDIS_URL=cache:6379
+    networks:
+      - frontend
+      - backend
+
+  poll-api:
+    image: finalproject/poll-api:v1
+    container_name: poll-api
+    restart: always
+    ports:
+      - '3080:3080'
+    depends_on:
+      cache:
+        condition: service_started
+    environment:
+      - REDIS_URL=cache:6379
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+    internal: false
+  backend:
+    internal: true

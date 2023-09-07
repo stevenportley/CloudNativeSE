@@ -17,6 +17,8 @@ const (
 	RedisDefaultLocation = "0.0.0.0:6379"
 	RedisKeyPrefix       = "vote:"
 	RedisIDKey           = "voteCnt:"
+	VoterDefaultLocation = "0.0.0.0:2080"
+	PollDefaultLocation  = "0.0.0.0:3080"
 )
 
 type Vote struct {
@@ -31,15 +33,25 @@ type VoteApi struct {
 	jsonHelper  *rejson.Handler
 	context     context.Context
 	apiClient   *resty.Client
-	voterUrl    string
-	pollUrl     string
+	VoterUrl    string
+	PollUrl     string
 	idCnter     uint
 }
 
-func NewVoteApi(voterUrl string, pollUrl string) (*VoteApi, error) {
+func NewVoteApi() (*VoteApi, error) {
 	redisUrl := os.Getenv("REDIS_URL")
 	if redisUrl == "" {
 		redisUrl = RedisDefaultLocation
+	}
+
+	voterUrl := os.Getenv("VOTER_URL")
+	if redisUrl == "" {
+		redisUrl = VoterDefaultLocation
+	}
+
+	pollUrl := os.Getenv("POLL_URL")
+	if pollUrl == "" {
+		pollUrl = PollDefaultLocation
 	}
 
 	api, err := NewDbWithInstance(redisUrl)
@@ -48,8 +60,8 @@ func NewVoteApi(voterUrl string, pollUrl string) (*VoteApi, error) {
 	}
 
 	api.apiClient = resty.New()
-	api.voterUrl = voterUrl
-	api.pollUrl = pollUrl
+	api.VoterUrl = voterUrl
+	api.PollUrl = pollUrl
 
 	itemObject, err := api.jsonHelper.JSONGet(RedisIDKey, ".")
 	if err != nil {
@@ -127,10 +139,6 @@ func (t *VoteApi) getVoteFromRedis(key string, vote *Vote) error {
 
 func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) {
 
-	//TODO: Make sure voter and poll exist!
-	//TODO: Update vote history for voter
-	//TODO: Update tally vote poll
-
 	//Before we add an item to the DB, lets make sure
 	//it does not exist, if it does, return an error
 	redisKey := redisKeyFromId(int(t.idCnter + 1))
@@ -140,9 +148,10 @@ func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) 
 	}
 
 	// Make sure that the voter exists
-	resp, err := t.apiClient.R().Get(t.voterUrl + string(voterID))
+	voterUrl := fmt.Sprint(t.VoterUrl, "/voter/", voterID)
+	resp, err := t.apiClient.R().Get(voterUrl)
 	if err != nil {
-		log.Println("Error when trying to reach voter api")
+		log.Println("Error when trying to reach voter api: ", voterUrl)
 		return &Vote{}, err
 	}
 
@@ -151,14 +160,21 @@ func (t *VoteApi) AddVote(voterID uint, pollID uint, value uint) (*Vote, error) 
 	}
 
 	// Make sure that the poll exists
-	resp, err = t.apiClient.R().Get(t.pollUrl + string(pollID))
+	pollUrl := fmt.Sprint(t.PollUrl, "/poll/", pollID)
+	resp, err = t.apiClient.R().Get(pollUrl)
 	if err != nil {
-		log.Println("Error when trying to reach poll api")
+		log.Println("Error when trying to reach poll api: ", pollUrl)
 		return &Vote{}, err
 	}
 
 	if resp.StatusCode() == 404 {
 		return &Vote{}, errors.New("The poll you are trying to vote in does not exist!!")
+	}
+
+	voterNewPollUrl := fmt.Sprintf(voterUrl, "/", pollID)
+	resp, err = t.apiClient.R().SetHeader("Content-Type", "application/json").Post(voterNewPollUrl)
+	if err != nil {
+		return &Vote{}, errors.New("Could not connect to voter-api to post new poll history")
 	}
 
 	newVote := Vote{
